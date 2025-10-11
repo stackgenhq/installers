@@ -1,7 +1,4 @@
 collectors:
   enabled: cpu,os,process,system,net,time,memory,logical_disk,service
-collector:
-  service:
-    include: 'opsverse-windows-exporter'
 log:
   level: warn
