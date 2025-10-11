@@ -1,7 +1,7 @@
 collectors:
-  enabled: cpu,os,cs,process,system,net,time,memory,logical_disk,service
+  enabled: cpu,os,process,system,net,time,memory,logical_disk,service
 collector:
   service:
-    services-where: "Name='opsverse-windows-exporter'"
+    include: 'opsverse-windows-exporter'
 log:
   level: warn
