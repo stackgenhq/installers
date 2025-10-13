@@ -59,14 +59,14 @@ $service = Get-Service -Name "opsverse-windows-exporter" -ErrorAction SilentlyCo
 if ($service.Length -gt 0) {
     echo "Stopping Running Windows Exporter Service"
     sc.exe delete "opsverse-windows-exporter"
-    taskkill /F /IM windows_exporter-0.20.0-amd64.exe
+    taskkill /F /IM windows_exporter-0.31.3-amd64.exe
     Start-Sleep -Seconds 5
 }
 
 echo "`nStarting Installation"
 Start-Process grafana-agent-installer.exe "/S /v/qn"
 Start-Sleep -Seconds 10
-cp .\windows_exporter-0.20.0-amd64.exe 'C:\Program Files\Grafana Agent'
+cp .\windows_exporter-0.31.3-amd64.exe 'C:\Program Files\Grafana Agent'
 cp .\agent-config.yaml 'C:\Program Files\Grafana Agent\agent-config.yaml'
 cp .\windows-agent-config.yaml 'C:\Program Files\Grafana Agent\windows-agent-config.yaml'
 
@@ -87,7 +87,7 @@ sc.exe failure "Grafana Agent" reset= 86400  actions= restart/60000/restart/6000
 sc.exe failureflag "Grafana Agent" 1
 
 $windows_agent_config="""""""C:\\Program Files\\Grafana Agent\\windows-agent-config.yaml"""
-$windows_agent_binPath="C:\\Program Files\\Grafana Agent\\windows_exporter-0.20.0-amd64.exe"
+$windows_agent_binPath="C:\\Program Files\\Grafana Agent\\windows_exporter-0.31.3-amd64.exe"
 sc.exe create opsverse-windows-exporter binPath= "$windows_agent_binPath --config.file=$windows_agent_config" type= own start= auto error= normal tag= no DisplayName= "opsverse-windows-exporter"
 
 sc.exe failure "opsverse-windows-exporter" reset= 86400  actions= restart/60000/restart/60000/restart/60000

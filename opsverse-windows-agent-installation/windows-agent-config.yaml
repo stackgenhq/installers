@@ -1,7 +1,4 @@
 collectors:
-  enabled: cpu,os,cs,process,system,net,time,memory,logical_disk,service
-collector:
-  service:
-    services-where: "Name='opsverse-windows-exporter'"
+  enabled: cpu,os,process,system,net,time,memory,logical_disk,service
 log:
   level: warn
