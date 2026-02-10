@@ -63,7 +63,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Show help, if necessary, and exit
-if [ "$HELP" = true ] || [ "$EXPORTER" != "mysqld" -a "$EXPORTER" != "mongodb" -a "$EXPORTER" != "redis" -a "$EXPORTER" != "jmx" -a "$EXPORTER" != "nginx" -a "$EXPORTER" != "cadvisor" -a "$EXPORTER" != "vmware" -a "$EXPORTER" != "opsverse-otelcontribcol" -a "$EXPORTER" != "postgres" -a "$EXPORTER" != "rds" -a "$EXPORTER" != "blackbox" -a "$EXPORTER" != "snmp" ]; then
+if [ "$HELP" = true ] || [ "$EXPORTER" != "mysqld" -a "$EXPORTER" != "mongodb" -a "$EXPORTER" != "redis" -a "$EXPORTER" != "jmx" -a "$EXPORTER" != "nginx" -a "$EXPORTER" != "cadvisor" -a "$EXPORTER" != "vmware" -a "$EXPORTER" != "opsverse-otelcontribcol" -a "$EXPORTER" != "postgres" -a "$EXPORTER" != "rds" -a "$EXPORTER" != "blackbox" -a "$EXPORTER" != "snmp" -a "$EXPORTER" != "kafka" ]; then
   echo "Installs a prometheus exporter on your machine"
   echo ""
   echo "Usage: sudo ./install-exporter.sh -e <exporter>" 
@@ -84,6 +84,7 @@ if [ "$HELP" = true ] || [ "$EXPORTER" != "mysqld" -a "$EXPORTER" != "mongodb" -
   echo "  - rds"
   echo "  - blackbox"
   echo "  - snmp"
+  echo "  - kafka"
   echo ""
   echo "Example:"
   echo "  sudo ./install-exporter.sh -e mysqld"
@@ -259,6 +260,20 @@ function download_exporter () {
     tar -xzf ${EXPORTER_BASE_NAME}.tar.gz
     cp ${EXPORTER_BASE_NAME}/snmp_exporter /usr/local/bin/
     chmod +x /usr/local/bin/snmp_exporter
+
+    # cleanup what was downloaded
+    rm -rf ${EXPORTER_BASE_NAME}*
+  fi
+
+  if [ "$EXPORTER" == "kafka" ]; then
+    EXPORTER_VERSION="1.9.0"
+    EXPORTER_BASE_NAME="kafka_exporter-${EXPORTER_VERSION}.linux-amd64"
+    EXPORTER_DL_URL="https://github.com/danielqsj/kafka_exporter/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
+
+    wget ${EXPORTER_DL_URL}
+    tar -xzf ${EXPORTER_BASE_NAME}.tar.gz
+    cp ${EXPORTER_BASE_NAME}/kafka_exporter /usr/local/bin/
+    chmod +x /usr/local/bin/kafka_exporter
 
     # cleanup what was downloaded
     rm -rf ${EXPORTER_BASE_NAME}*
@@ -647,7 +662,20 @@ WantedBy=multi-user.target
 EOF
   fi
 
+  if [ "$EXPORTER" == "kafka" ]; then
+    cat << EOF > $EXPORTER_SERVICE_FILE
+[Unit]
+Description=Prometheus Kafka Exporter
 
+[Service]
+User=root
+ExecStart=/usr/local/bin/kafka_exporter --kafka.server=localhost:9092
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  fi
 
   # Wrapped in this condition because some exporters (like the
   # jmx agent), don't need to run as services
@@ -661,7 +689,7 @@ EOF
 # returns true (0) if exporter needs a sysv init script
 function exporter_needs_sysv () {
 
-  if [ "$1" == "redis" ] || [ "$1" == "mysqld" ] || [ "$1" == "mongodb" ] || [ "$1" == 'nginx' ] || [ "$1" == "cadvisor" ] || [ "$1" == "vmware" ] || [ "$1" == "opsverse-otelcontribcol" ] || [ "$1" == "postgres" ] || [ "$1" == "rds" ] || [ "$1" == "blackbox" ] || [ "$1" == "snmp" ]  ; then
+  if [ "$1" == "redis" ] || [ "$1" == "mysqld" ] || [ "$1" == "mongodb" ] || [ "$1" == 'nginx' ] || [ "$1" == "cadvisor" ] || [ "$1" == "vmware" ] || [ "$1" == "opsverse-otelcontribcol" ] || [ "$1" == "postgres" ] || [ "$1" == "rds" ] || [ "$1" == "blackbox" ] || [ "$1" == "snmp" ] || [ "$1" == "kafka" ] ; then
     return 0
   fi
 
@@ -746,6 +774,12 @@ function set_exporter_sysv () {
       EXPORTER_CONFIG="/etc/opsverse/exporters/snmp/snmp-config.yml"
       EXPORTER_COMMAND="/usr/local/bin/snmp_exporter --config.file=/etc/opsverse/exporters/snmp/snmp-config.yml --config.file=/etc/opsverse/exporters/snmp/snmp-config-custom.yml"
       EXPORTER_KILLPROC="snmp_exporter"
+    fi
+
+    if [ "$EXPORTER" == "kafka" ]; then
+      EXPORTER_CONFIG="N/A"
+      EXPORTER_COMMAND="/usr/local/bin/kafka_exporter --kafka.server=localhost:9092"
+      EXPORTER_KILLPROC="kafka_exporter"
     fi
 
     cat << EOF > $EXPORTER_SYSV_SCRIPT
@@ -987,6 +1021,21 @@ EOF
     },
     "targets": [
       "localhost:9116"
+    ]
+  }
+]
+EOF
+  fi
+
+  if [ "$EXPORTER" == "kafka" ]; then
+    cat << EOF > /etc/opsverse/targets/${EXPORTER}-exporter.json
+[
+  {
+    "labels": {
+      "job": "integrations/kafka-exporter"
+    },
+    "targets": [
+      "localhost:9308"
     ]
   }
 ]
