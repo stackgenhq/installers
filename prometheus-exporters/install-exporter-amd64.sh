@@ -481,6 +481,45 @@ EOF
     touch /etc/opsverse/exporters/snmp/snmp-config-custom.yml
   fi
 
+  if [ "$EXPORTER" == "kafka" ]; then
+    KAFKA_CONF_DIR="/etc/opsverse/exporters/kafka"
+    KAFKA_BROKERS_CONF="${KAFKA_CONF_DIR}/kafka-brokers.conf"
+    KAFKA_START_SCRIPT="${KAFKA_CONF_DIR}/opsverse-kafka-exporter-start.sh"
+
+    # Create broker list config only if it doesn't exist (preserve user edits on re-run)
+    if [ ! -f "${KAFKA_BROKERS_CONF}" ]; then
+      cat << EOF > "${KAFKA_BROKERS_CONF}"
+# Kafka broker list for prom-kafka-exporter.
+# One broker per line (host:port). Blank lines and lines starting with # are ignored.
+# Add or remove brokers below, then restart the service: sudo systemctl restart prom-kafka-exporter.service
+# At least one broker must be running and reachable when the service starts, or the exporter will fail to start.
+#
+# Example:
+#   localhost:9092
+#   kafka-broker1.example.com:9092
+#   kafka-broker2.example.com:9092
+#
+localhost:9092
+EOF
+    fi
+
+    # Wrapper script: reads kafka-brokers.conf and runs kafka_exporter with --kafka.server for each line
+    cat << 'WRAPPER_EOF' > "${KAFKA_START_SCRIPT}"
+#!/bin/bash
+KAFKA_BROKERS_CONF="/etc/opsverse/exporters/kafka/kafka-brokers.conf"
+ARGS=""
+while IFS= read -r line || [[ -n "$line" ]]; do
+  line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  [[ -z "$line" || "$line" =~ ^# ]] && continue
+  ARGS="${ARGS} --kafka.server=${line}"
+done < "${KAFKA_BROKERS_CONF}"
+# Default to localhost:9092 if no valid brokers found
+[[ -z "$ARGS" ]] && ARGS="--kafka.server=localhost:9092"
+exec /usr/local/bin/kafka_exporter ${ARGS}
+WRAPPER_EOF
+    chmod +x "${KAFKA_START_SCRIPT}"
+  fi
+
 }
 
 function set_exporter_systemd () {
@@ -669,7 +708,7 @@ Description=Prometheus Kafka Exporter
 
 [Service]
 User=root
-ExecStart=/usr/local/bin/kafka_exporter --kafka.server=localhost:9092
+ExecStart=/etc/opsverse/exporters/kafka/opsverse-kafka-exporter-start.sh
 Restart=always
 
 [Install]
@@ -777,8 +816,8 @@ function set_exporter_sysv () {
     fi
 
     if [ "$EXPORTER" == "kafka" ]; then
-      EXPORTER_CONFIG="N/A"
-      EXPORTER_COMMAND="/usr/local/bin/kafka_exporter --kafka.server=localhost:9092"
+      EXPORTER_CONFIG="/etc/opsverse/exporters/kafka/kafka-brokers.conf"
+      EXPORTER_COMMAND="/etc/opsverse/exporters/kafka/opsverse-kafka-exporter-start.sh"
       EXPORTER_KILLPROC="kafka_exporter"
     fi
 
