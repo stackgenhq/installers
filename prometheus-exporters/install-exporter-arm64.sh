@@ -63,7 +63,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Show help, if necessary, and exit
-if [ "$HELP" = true ] || [ "$EXPORTER" != "mysqld" -a "$EXPORTER" != "mongodb" -a "$EXPORTER" != "redis" -a "$EXPORTER" != "jmx" -a "$EXPORTER" != "nginx" -a "$EXPORTER" != "cadvisor" -a "$EXPORTER" != "vmware" -a "$EXPORTER" != "opsverse-otelcontribcol" -a "$EXPORTER" != "postgres" -a "$EXPORTER" != "rds" -a "$EXPORTER" != "blackbox" -a "$EXPORTER" != "snmp" ]; then
+if [ "$HELP" = true ] || [ "$EXPORTER" != "mysqld" -a "$EXPORTER" != "mongodb" -a "$EXPORTER" != "redis" -a "$EXPORTER" != "jmx" -a "$EXPORTER" != "nginx" -a "$EXPORTER" != "cadvisor" -a "$EXPORTER" != "vmware" -a "$EXPORTER" != "opsverse-otelcontribcol" -a "$EXPORTER" != "postgres" -a "$EXPORTER" != "rds" -a "$EXPORTER" != "blackbox" -a "$EXPORTER" != "snmp" -a "$EXPORTER" != "kafka" ]; then
   echo "Installs a prometheus exporter on your machine"
   echo ""
   echo "Usage: sudo ./install-exporter.sh -e <exporter>" 
@@ -83,6 +83,8 @@ if [ "$HELP" = true ] || [ "$EXPORTER" != "mysqld" -a "$EXPORTER" != "mongodb" -
   echo "  - postgres"
   echo "  - rds"
   echo "  - blackbox"
+  echo "  - snmp"
+  echo "  - kafka"
   echo ""
   echo "Example:"
   echo "  sudo ./install-exporter.sh -e mysqld"
@@ -258,6 +260,20 @@ function download_exporter () {
     tar -xzf ${EXPORTER_BASE_NAME}.tar.gz
     cp ${EXPORTER_BASE_NAME}/snmp_exporter /usr/local/bin/
     chmod +x /usr/local/bin/snmp_exporter
+
+    # cleanup what was downloaded
+    rm -rf ${EXPORTER_BASE_NAME}*
+  fi
+
+  if [ "$EXPORTER" == "kafka" ]; then
+    EXPORTER_VERSION="1.9.0"
+    EXPORTER_BASE_NAME="kafka_exporter-${EXPORTER_VERSION}.linux-arm64"
+    EXPORTER_DL_URL="https://github.com/danielqsj/kafka_exporter/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
+
+    wget ${EXPORTER_DL_URL}
+    tar -xzf ${EXPORTER_BASE_NAME}.tar.gz
+    cp ${EXPORTER_BASE_NAME}/kafka_exporter /usr/local/bin/
+    chmod +x /usr/local/bin/kafka_exporter
 
     # cleanup what was downloaded
     rm -rf ${EXPORTER_BASE_NAME}*
@@ -464,6 +480,45 @@ EOF
     touch /etc/opsverse/exporters/snmp/snmp-config-custom.yml
   fi
 
+  if [ "$EXPORTER" == "kafka" ]; then
+    KAFKA_CONF_DIR="/etc/opsverse/exporters/kafka"
+    KAFKA_BROKERS_CONF="${KAFKA_CONF_DIR}/kafka-brokers.conf"
+    KAFKA_START_SCRIPT="${KAFKA_CONF_DIR}/opsverse-kafka-exporter-start.sh"
+
+    # Create broker list config only if it doesn't exist (preserve user edits on re-run)
+    if [ ! -f "${KAFKA_BROKERS_CONF}" ]; then
+      cat << EOF > "${KAFKA_BROKERS_CONF}"
+# Kafka broker list for prom-kafka-exporter.
+# One broker per line (host:port). Blank lines and lines starting with # are ignored.
+# Add or remove brokers below, then restart the service: sudo systemctl restart prom-kafka-exporter.service
+# At least one broker must be running and reachable when the service starts, or the exporter will fail to start.
+#
+# Example:
+#   localhost:9092
+#   kafka-broker1.example.com:9092
+#   kafka-broker2.example.com:9092
+#
+localhost:9092
+EOF
+    fi
+
+    # Wrapper script: reads kafka-brokers.conf and runs kafka_exporter with --kafka.server for each line
+    cat << 'WRAPPER_EOF' > "${KAFKA_START_SCRIPT}"
+#!/bin/bash
+KAFKA_BROKERS_CONF="/etc/opsverse/exporters/kafka/kafka-brokers.conf"
+ARGS=""
+while IFS= read -r line || [[ -n "$line" ]]; do
+  line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  [[ -z "$line" || "$line" =~ ^# ]] && continue
+  ARGS="${ARGS} --kafka.server=${line}"
+done < "${KAFKA_BROKERS_CONF}"
+# Default to localhost:9092 if no valid brokers found
+[[ -z "$ARGS" ]] && ARGS="--kafka.server=localhost:9092"
+exec /usr/local/bin/kafka_exporter ${ARGS}
+WRAPPER_EOF
+    chmod +x "${KAFKA_START_SCRIPT}"
+  fi
+
 }
 
 function set_exporter_systemd () {
@@ -645,6 +700,21 @@ WantedBy=multi-user.target
 EOF
   fi
 
+  if [ "$EXPORTER" == "kafka" ]; then
+    cat << EOF > $EXPORTER_SERVICE_FILE
+[Unit]
+Description=Prometheus Kafka Exporter
+
+[Service]
+User=root
+ExecStart=/etc/opsverse/exporters/kafka/opsverse-kafka-exporter-start.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  fi
+
   # Wrapped in this condition because some exporters (like the
   # jmx agent), don't need to run as services
   if [ -f ${EXPORTER_SERVICE_FILE} ]; then
@@ -657,7 +727,7 @@ EOF
 # returns true (0) if exporter needs a sysv init script
 function exporter_needs_sysv () {
 
-  if [ "$1" == "redis" ] || [ "$1" == "mysqld" ] || [ "$1" == "mongodb" ] || [ "$1" == 'nginx' ] || [ "$1" == "cadvisor" ] || [ "$1" == "vmware" ] || [ "$1" == "opsverse-otelcontribcol" ] || [ "$1" == "postgres" ] || [ "$1" == "rds" ] || [ "$1" == "blackbox" ] || [ "$1" == "snmp" ] ; then
+  if [ "$1" == "redis" ] || [ "$1" == "mysqld" ] || [ "$1" == "mongodb" ] || [ "$1" == 'nginx' ] || [ "$1" == "cadvisor" ] || [ "$1" == "vmware" ] || [ "$1" == "opsverse-otelcontribcol" ] || [ "$1" == "postgres" ] || [ "$1" == "rds" ] || [ "$1" == "blackbox" ] || [ "$1" == "snmp" ] || [ "$1" == "kafka" ] ; then
     return 0
   fi
 
@@ -742,6 +812,12 @@ function set_exporter_sysv () {
       EXPORTER_CONFIG="/etc/opsverse/exporters/snmp/snmp-config.yml"
       EXPORTER_COMMAND="/usr/local/bin/snmp_exporter --config.file=/etc/opsverse/exporters/snmp/snmp-config.yml --config.file=/etc/opsverse/exporters/snmp/snmp-config-custom.yml"
       EXPORTER_KILLPROC="snmp_exporter"
+    fi
+
+    if [ "$EXPORTER" == "kafka" ]; then
+      EXPORTER_CONFIG="/etc/opsverse/exporters/kafka/kafka-brokers.conf"
+      EXPORTER_COMMAND="/etc/opsverse/exporters/kafka/opsverse-kafka-exporter-start.sh"
+      EXPORTER_KILLPROC="kafka_exporter"
     fi
 
     cat << EOF > $EXPORTER_SYSV_SCRIPT
@@ -983,6 +1059,21 @@ EOF
     },
     "targets": [
       "localhost:9116"
+    ]
+  }
+]
+EOF
+  fi
+
+  if [ "$EXPORTER" == "kafka" ]; then
+    cat << EOF > /etc/opsverse/targets/${EXPORTER}-exporter.json
+[
+  {
+    "labels": {
+      "job": "integrations/kafka-exporter"
+    },
+    "targets": [
+      "localhost:9308"
     ]
   }
 ]
