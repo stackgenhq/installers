@@ -13,7 +13,7 @@ $ sudo apt install makeself unzip
 The zip file has been included to avoid needing git-lfs for large executable size
 
 ```
-unzip grafana-agent-v0.34.0-linux-amd64.zip && rm grafana-agent-v0.34.0-linux-amd64.zip
+unzip grafana-agent-v0.44.2-linux-amd64.zip && rm grafana-agent-v0.44.2-linux-amd64.zip
 ```
 
 ## Creating the bundle

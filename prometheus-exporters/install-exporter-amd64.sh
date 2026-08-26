@@ -95,7 +95,7 @@ fi
 function download_exporter () {
 
   if [ "$EXPORTER" == "mongodb" ]; then
-    EXPORTER_VERSION="0.32.0"
+    EXPORTER_VERSION="0.53.0"
     EXPORTER_BASE_NAME="mongodb_exporter-${EXPORTER_VERSION}.linux-amd64"
     EXPORTER_DL_URL="https://github.com/percona/mongodb_exporter/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
 
@@ -109,7 +109,7 @@ function download_exporter () {
   fi
 
   if [ "$EXPORTER" == "mysqld" ]; then
-    EXPORTER_VERSION="0.14.0"
+    EXPORTER_VERSION="0.19.0"
     EXPORTER_BASE_NAME="mysqld_exporter-${EXPORTER_VERSION}.linux-amd64"
     EXPORTER_DL_URL="https://github.com/prometheus/mysqld_exporter/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
 
@@ -123,7 +123,7 @@ function download_exporter () {
   fi
 
   if [ "$EXPORTER" == "redis" ]; then
-    EXPORTER_VERSION="1.37.0"
+    EXPORTER_VERSION="1.89.0"
     EXPORTER_BASE_NAME="redis_exporter-v${EXPORTER_VERSION}.linux-amd64"
     EXPORTER_DL_URL="https://github.com/oliver006/redis_exporter/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
 
@@ -137,13 +137,13 @@ function download_exporter () {
   fi
 
   if [ "$EXPORTER" == "cadvisor" ]; then
-    EXPORTER_VERSION="0.39.2"
-    EXPORTER_BASE_NAME="cadvisor"
+    EXPORTER_VERSION="0.60.5"
+    EXPORTER_BASE_NAME="cadvisor-v${EXPORTER_VERSION}-linux-amd64"
     EXPORTER_DL_URL="https://github.com/google/cadvisor/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}"
 
     wget ${EXPORTER_DL_URL}
-    cp ${EXPORTER_BASE_NAME} /usr/local/bin/${EXPORTER_BASE_NAME}
-    chmod +x /usr/local/bin/${EXPORTER_BASE_NAME}
+    cp ${EXPORTER_BASE_NAME} /usr/local/bin/cadvisor
+    chmod +x /usr/local/bin/cadvisor
 
     # cleanup what was downloaded
     rm -rf ${EXPORTER_BASE_NAME}*
@@ -151,7 +151,7 @@ function download_exporter () {
 
 
   if [ "$EXPORTER" == "nginx" ]; then
-    EXPORTER_VERSION="0.10.0"
+    EXPORTER_VERSION="1.5.3"
     EXPORTER_BASE_NAME="nginx-prometheus-exporter_${EXPORTER_VERSION}_linux_amd64"
     EXPORTER_DL_URL="https://github.com/nginxinc/nginx-prometheus-exporter/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
 
@@ -166,7 +166,7 @@ function download_exporter () {
   fi
  
   if [ "$EXPORTER" == "jmx" ]; then
-    EXPORTER_VERSION="1.1.0"
+    EXPORTER_VERSION="1.6.0"
     EXPORTER_BASE_NAME="jmx_prometheus_javaagent-${EXPORTER_VERSION}"
     EXPORTER_DL_URL="https://github.com/prometheus/jmx_exporter/releases/download/${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.jar"
 
@@ -179,8 +179,8 @@ function download_exporter () {
   fi
 
   if [ "$EXPORTER" == "opsverse-otelcontribcol" ]; then
-    EXPORTER_VERSION="0.130.1"
-    EXPORTER_BASE_NAME="otelcol-contrib_0.130.1_linux_amd64"
+    EXPORTER_VERSION="0.159.0"
+    EXPORTER_BASE_NAME="otelcol-contrib_${EXPORTER_VERSION}_linux_amd64"
     EXPORTER_DL_URL="https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
 
     wget ${EXPORTER_DL_URL}
@@ -193,7 +193,7 @@ function download_exporter () {
   fi
 
   if [ "$EXPORTER" == "vmware" ]; then
-    EXPORTER_VERSION="0.18.3"
+    EXPORTER_VERSION="0.18.4"
     EXPORTER_BASE_NAME="vmware_exporter-${EXPORTER_VERSION}"
     EXPORTER_DL_URL="https://github.com/pryorda/vmware_exporter/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
 
@@ -207,7 +207,7 @@ function download_exporter () {
   fi
 
   if [ "$EXPORTER" == "postgres" ]; then
-    EXPORTER_VERSION="0.10.1"
+    EXPORTER_VERSION="0.19.1"
     EXPORTER_BASE_NAME="postgres_exporter-${EXPORTER_VERSION}.linux-amd64"
     EXPORTER_DL_URL="https://github.com/prometheus-community/postgres_exporter/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
 
@@ -237,7 +237,7 @@ function download_exporter () {
   fi
 
   if [ "$EXPORTER" == "blackbox" ]; then
-    EXPORTER_VERSION="0.22.0"
+    EXPORTER_VERSION="0.28.0"
     EXPORTER_BASE_NAME="blackbox_exporter-${EXPORTER_VERSION}.linux-amd64"
     EXPORTER_DL_URL="https://github.com/prometheus/blackbox_exporter/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
 
@@ -252,7 +252,7 @@ function download_exporter () {
   fi
 
   if [ "$EXPORTER" == "snmp" ]; then
-    EXPORTER_VERSION="0.26.0"
+    EXPORTER_VERSION="0.30.1"
     EXPORTER_BASE_NAME="snmp_exporter-${EXPORTER_VERSION}.linux-amd64"
     EXPORTER_DL_URL="https://github.com/prometheus/snmp_exporter/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
 
@@ -599,7 +599,7 @@ Description=Prometheus Nginx Exporter
 
 [Service]
 User=root
-ExecStart=/usr/local/bin/nginx-prometheus-exporter -nginx.scrape-uri=http://localhost:8080/stub_status
+ExecStart=/usr/local/bin/nginx-prometheus-exporter --nginx.scrape-uri=http://localhost:8080/stub_status
 Restart=always
 
 [Install]
@@ -769,7 +769,7 @@ function set_exporter_sysv () {
 
     if [ "$EXPORTER" == "nginx" ]; then
       EXPORTER_CONFIG="N/A"
-      EXPORTER_COMMAND="/usr/local/bin/nginx-prometheus-exporter -nginx.scrape-uri=http://localhost:8080/stub_status"
+      EXPORTER_COMMAND="/usr/local/bin/nginx-prometheus-exporter --nginx.scrape-uri=http://localhost:8080/stub_status"
       EXPORTER_KILLPROC="nginx-prometheus-exporter"
     fi
 
