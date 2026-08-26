@@ -13,7 +13,7 @@ $ sudo apt install makeself unzip
 The zip file has been included to avoid needing git-lfs for large executable size
 
 ```
-unzip grafana-agent-v0.34.0-linux-amd64.zip && rm grafana-agent-v0.34.0-linux-amd64.zip
+unzip grafana-agent-v0.44.2-linux-amd64.zip && rm grafana-agent-v0.44.2-linux-amd64.zip
 ```
 
 ## Creating the bundle
@@ -23,10 +23,16 @@ Makeself will bundle the target directory and run the startup/setup script you s
 So, in this case, if you are in the current (`./`) directory, you'd run the following to create the executable bundle:
 
 ```
-$ makeself ./ installer.sh "OpsVerse Agent Installer" ./setup.sh
+$ makeself ./ ../installer.sh "OpsVerse Agent Installer" ./setup.sh
+$ mv ../installer.sh ./
 ```
 
-This ^ command will bundle everything in `./` and create `installer.sh` 
+This ^ command will bundle everything in `./` and create `installer.sh`
+
+NOTE: write the output OUTSIDE the bundled directory (`../installer.sh`), otherwise a
+pre-existing `installer.sh` from a previous build gets bundled into the new one,
+bloating it by 100MB+ per rebuild. For the same reason, remove any old `installer.sh`,
+agent zip, or `.deb` from this directory before running makeself.
 
 When a user runs `installer.sh`, it will behind-the-scenes unbundle and execute "./setup.sh"
 
