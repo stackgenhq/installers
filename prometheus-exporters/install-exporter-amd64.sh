@@ -441,7 +441,7 @@ EOF
 
   if [ "$EXPORTER" == "postgres" ]; then
     cat << EOF > /etc/opsverse/exporters/postgres/postgres_exporter.env
-DATA_SOURCE_NAME="postgresql://postgres:postgres123@localhost:5432/?sslmode=disable"
+DATA_SOURCE_NAME="postgresql://postgres_user:postgres_password@localhost:5432/?sslmode=disable"
 EOF
   fi
 
