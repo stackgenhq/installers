@@ -1,0 +1,36 @@
+// StackGen ObserveNow - additional windows_exporter collectors
+// Runs a second windows exporter instance with extra collectors on top of the
+// base set (cpu, os, process, system, net, time, memory, logical_disk,
+// service). Do NOT repeat base collectors here - that would ship duplicate
+// samples.
+//
+// Re-run install-exporter.ps1 with a different -Collectors list to replace
+// this list, or -Remove to drop back to the base set.
+//
+// After editing, reload the agent:
+//   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
+
+prometheus.exporter.windows "extra" {
+  enabled_collectors = [__COLLECTORS__]
+}
+
+discovery.relabel "windows_exporter_extra" {
+  targets = prometheus.exporter.windows.extra.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = "__HOSTNAME__"
+  }
+
+  rule {
+    target_label = "node"
+    replacement  = "__HOSTNAME__"
+  }
+}
+
+prometheus.scrape "windows_exporter_extra" {
+  job_name        = "integrations/windows-exporter"
+  scrape_interval = "30s"
+  targets         = discovery.relabel.windows_exporter_extra.output
+  forward_to      = [prometheus.remote_write.observenow.receiver]
+}

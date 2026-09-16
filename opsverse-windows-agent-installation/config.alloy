@@ -1,0 +1,85 @@
+// StackGen ObserveNow - base agent configuration
+//
+// Installed to C:\ProgramData\StackGen\ObserveNow\conf.d\config.alloy
+// The agent runs against that whole directory: every *.alloy file in it is
+// loaded as part of one configuration. The base install collects Windows
+// system metrics and Windows event logs only.
+//
+// Additional components (mssql, mysql, postgres, redis, kafka, blackbox,
+// nginx, jmx, javalogs) are added as separate <component>.alloy files by
+// install-exporter.ps1. They forward to the shared remote_write / loki.write
+// components defined at the bottom of this file.
+//
+// Placeholders (__HOSTNAME__, __METRICS_URL__, __LOGS_URL__, __PASSWORD__)
+// are substituted by installation.ps1 at install time.
+
+// ---------- Windows host metrics ----------
+
+prometheus.exporter.windows "host" {
+  enabled_collectors = ["cpu", "os", "process", "system", "net", "time", "memory", "logical_disk", "service"]
+}
+
+discovery.relabel "windows_exporter" {
+  targets = prometheus.exporter.windows.host.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = "__HOSTNAME__"
+  }
+
+  rule {
+    target_label = "node"
+    replacement  = "__HOSTNAME__"
+  }
+}
+
+prometheus.scrape "windows_exporter" {
+  job_name        = "integrations/windows-exporter"
+  scrape_interval = "30s"
+  targets         = discovery.relabel.windows_exporter.output
+  forward_to      = [prometheus.remote_write.observenow.receiver]
+}
+
+// ---------- Windows event logs ----------
+
+loki.source.windowsevent "application" {
+  eventlog_name          = "Application"
+  use_incoming_timestamp = false
+
+  labels = {
+    job  = "windows-events",
+    host = "__HOSTNAME__",
+  }
+
+  forward_to = [loki.write.observenow.receiver]
+}
+
+// ---------- Shared outputs (used by all component drop-ins) ----------
+
+// Basic-auth credentials for OTLP trace export (referenced by otel.alloy)
+otelcol.auth.basic "observenow" {
+  username = "devopsnow"
+  password = "__PASSWORD__"
+}
+
+prometheus.remote_write "observenow" {
+  endpoint {
+    url = "__METRICS_URL__"
+
+    basic_auth {
+      username = "devopsnow"
+      password = "__PASSWORD__"
+    }
+  }
+}
+
+loki.write "observenow" {
+  endpoint {
+    url = "__LOGS_URL__"
+
+    basic_auth {
+      username = "devopsnow"
+      password = "__PASSWORD__"
+    }
+  }
+}

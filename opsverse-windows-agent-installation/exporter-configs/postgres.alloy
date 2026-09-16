@@ -1,0 +1,32 @@
+// StackGen ObserveNow - PostgreSQL monitoring
+// Uses the agent's built-in Postgres exporter.
+//
+// DSN format: postgresql://user:password@host:port/dbname?sslmode=disable
+//
+// After editing, reload the agent:
+//   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
+
+prometheus.exporter.postgres "store" {
+  data_source_names = ["__CONNECTION_STRING__"]
+}
+
+discovery.relabel "postgres" {
+  targets = prometheus.exporter.postgres.store.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = "__HOSTNAME__"
+  }
+
+  rule {
+    target_label = "node"
+    replacement  = "__HOSTNAME__"
+  }
+}
+
+prometheus.scrape "postgres" {
+  job_name        = "integrations/postgres-exporter"
+  scrape_interval = "30s"
+  targets         = discovery.relabel.postgres.output
+  forward_to      = [prometheus.remote_write.observenow.receiver]
+}

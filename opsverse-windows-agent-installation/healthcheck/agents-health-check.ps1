@@ -1,15 +1,8 @@
 #Requires -RunAsAdministrator
 
-$grafanaAgentService = Get-Service -Name "Grafana Agent" -ErrorAction SilentlyContinue
+$agentService = Get-Service -Name "ObserveNowAgent" -ErrorAction SilentlyContinue
 
-if ($grafanaAgentService.Length -lt 2 -and $grafanaAgentService.Status -ne 'Running') {
-    Start-Service 'Grafana Agent'
-    Start-Sleep -Seconds 5
-}
-
-$opsverseWEService = Get-Service -Name "opsverse-windows-exporter" -ErrorAction SilentlyContinue
-
-if ($opsverseWEService.Length -lt 2 -and $opsverseWEService.Status -ne 'Running') {
-    Start-Service 'opsverse-windows-exporter'
+if ($agentService -and $agentService.Status -ne 'Running') {
+    Start-Service 'ObserveNowAgent'
     Start-Sleep -Seconds 5
 }

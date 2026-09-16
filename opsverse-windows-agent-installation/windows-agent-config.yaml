@@ -1,4 +1,0 @@
-collectors:
-  enabled: cpu,os,process,system,net,time,memory,logical_disk,service
-log:
-  level: warn

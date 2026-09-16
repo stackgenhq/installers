@@ -1,0 +1,32 @@
+// StackGen ObserveNow - Redis monitoring
+// Uses the agent's built-in Redis exporter.
+//
+// Address format: host:port (add redis_password = "..." if auth is enabled)
+//
+// After editing, reload the agent:
+//   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
+
+prometheus.exporter.redis "store" {
+  redis_addr = "__CONNECTION_STRING__"
+}
+
+discovery.relabel "redis" {
+  targets = prometheus.exporter.redis.store.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = "__HOSTNAME__"
+  }
+
+  rule {
+    target_label = "node"
+    replacement  = "__HOSTNAME__"
+  }
+}
+
+prometheus.scrape "redis" {
+  job_name        = "integrations/redis-exporter"
+  scrape_interval = "30s"
+  targets         = discovery.relabel.redis.output
+  forward_to      = [prometheus.remote_write.observenow.receiver]
+}
