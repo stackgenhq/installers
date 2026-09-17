@@ -15,8 +15,8 @@ prometheus.scrape "nginx" {
 
   targets = [{
     __address__ = "127.0.0.1:9113",
-    instance    = "__HOSTNAME__",
-    node        = "__HOSTNAME__",
+    instance    = local.file.hostname.content,
+    node        = local.file.hostname.content,
   }]
 
   forward_to = [prometheus.remote_write.observenow.receiver]

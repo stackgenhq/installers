@@ -173,17 +173,21 @@ sc.exe create $serviceName binPath= "`"$serviceBinary`"" start= delayed-auto Dis
 
 Write-Output "Writing base configuration to $confDir\config.alloy"
 
+# The hostname lives in a single file that config.alloy and every conf.d
+# drop-in reference via local.file.hostname.content, so re-running with a new
+# -Hostname updates all components at once. Written without a trailing
+# newline so the label value is exactly the hostname.
+$hostnameFile = Join-Path $dataDir "hostname.txt"
+[System.IO.File]::WriteAllText($hostnameFile, $Hostname)
+
 $config = Get-Content (Join-Path $PSScriptRoot "config.alloy") -Raw
 
-$config = $config.Replace("__HOSTNAME__", $Hostname)
+$config = $config.Replace("__HOSTNAME_FILE__", $hostnameFile.Replace("\", "/"))
 $config = $config.Replace("__METRICS_URL__", $MetricsUrl)
 $config = $config.Replace("__LOGS_URL__", $LogsUrl)
 $config = $config.Replace("__PASSWORD__", $Password)
 
 Set-Content -Path (Join-Path $confDir "config.alloy") -Value $config -Encoding ASCII
-
-# Settings consumed by install-exporter.ps1 (no secrets here)
-@{ hostname = $Hostname } | ConvertTo-Json | Set-Content -Path (Join-Path $dataDir "agent-settings.json") -Encoding ASCII
 
 # ---------- Install healthcheck script ----------
 

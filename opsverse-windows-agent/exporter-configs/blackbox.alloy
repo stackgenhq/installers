@@ -22,12 +22,12 @@ discovery.relabel "blackbox" {
 
   rule {
     target_label = "instance"
-    replacement  = "__HOSTNAME__"
+    replacement  = local.file.hostname.content
   }
 
   rule {
     target_label = "node"
-    replacement  = "__HOSTNAME__"
+    replacement  = local.file.hostname.content
   }
 }
 

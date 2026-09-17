@@ -10,8 +10,18 @@
 // install-exporter.ps1. They forward to the shared remote_write / loki.write
 // components defined at the bottom of this file.
 //
-// Placeholders (__HOSTNAME__, __METRICS_URL__, __LOGS_URL__, __PASSWORD__)
+// Placeholders (__HOSTNAME_FILE__, __METRICS_URL__, __LOGS_URL__, __PASSWORD__)
 // are substituted by installation.ps1 at install time.
+
+// ---------- Hostname (single source of truth) ----------
+// installation.ps1 writes the -Hostname value to this file. The base config
+// and every conf.d drop-in reference local.file.hostname.content, so a
+// hostname change is a one-file update that all components pick up
+// automatically.
+
+local.file "hostname" {
+  filename = "__HOSTNAME_FILE__"
+}
 
 // ---------- Windows host metrics ----------
 
@@ -24,12 +34,12 @@ discovery.relabel "windows_exporter" {
 
   rule {
     target_label = "instance"
-    replacement  = "__HOSTNAME__"
+    replacement  = local.file.hostname.content
   }
 
   rule {
     target_label = "node"
-    replacement  = "__HOSTNAME__"
+    replacement  = local.file.hostname.content
   }
 }
 
@@ -52,7 +62,7 @@ loki.source.windowsevent "application" {
 
   labels = {
     job  = "windows-events",
-    host = "__HOSTNAME__",
+    host = local.file.hostname.content,
   }
 
   forward_to = [loki.write.observenow.receiver]

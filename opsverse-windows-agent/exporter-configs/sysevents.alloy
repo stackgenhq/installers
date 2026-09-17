@@ -11,7 +11,7 @@ loki.source.windowsevent "system" {
 
   labels = {
     job  = "windows-events",
-    host = "__HOSTNAME__",
+    host = local.file.hostname.content,
   }
 
   forward_to = [loki.write.observenow.receiver]

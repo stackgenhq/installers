@@ -73,7 +73,6 @@ $ErrorActionPreference = "Stop"
 
 $dataDir       = Join-Path $env:ProgramData "StackGen\ObserveNow"
 $confDir       = Join-Path $dataDir "conf.d"
-$settingsPath  = Join-Path $dataDir "agent-settings.json"
 $exportersDir  = Join-Path $env:ProgramFiles "StackGen\ObserveNow\exporters"
 $componentConf = Join-Path $confDir "$Exporter.alloy"
 $agentService  = "ObserveNowAgent"
@@ -133,12 +132,6 @@ if ($Remove) {
 
 # ---------- Install ----------
 
-$hostname = $env:COMPUTERNAME
-if (Test-Path $settingsPath) {
-    $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
-    if ($settings.hostname) { $hostname = $settings.hostname }
-}
-
 if ($Exporter -eq "javalogs" -and -not $LogPath) {
     throw "javalogs requires -LogPath, e.g. -LogPath 'C:\StackGen\logs\*.log'"
 }
@@ -151,8 +144,9 @@ if ($Exporter -eq "collectors" -and -not $Collectors) {
     throw "collectors requires -Collectors, e.g. -Collectors 'iis,dns'"
 }
 
+# Hostname is not substituted here: templates reference the shared
+# local.file.hostname.content component defined in config.alloy.
 $template = Get-Content (Join-Path $PSScriptRoot "exporter-configs\$Exporter.alloy") -Raw
-$template = $template.Replace("__HOSTNAME__", $hostname)
 
 if ($connectionDefaults.ContainsKey($Exporter)) {
     $conn = if ($ConnectionString) { $ConnectionString } else { $connectionDefaults[$Exporter] }
@@ -165,7 +159,7 @@ if ($connectionDefaults.ContainsKey($Exporter)) {
 if ($Exporter -eq "javalogs") {
     $logPaths = @($LogPath -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ })
     $pathTargets = ($logPaths | ForEach-Object {
-        "    { __path__ = `"$($_.Replace('\', '\\'))`", job = `"java-services`", host = `"$hostname`" },"
+        "    { __path__ = `"$($_.Replace('\', '\\'))`", job = `"java-services`", host = local.file.hostname.content },"
     }) -join "`n"
     $template = $template.Replace("__PATH_TARGETS__", $pathTargets)
 }

@@ -31,7 +31,10 @@ healthcheck\agents-health-check.ps1     Restarts the service if it stops
 URLs may be given with or without scheme/path - they are normalized to
 `https://<host>/api/v1/write` (metrics) and `https://<host>/loki/api/v1/push`
 (logs). Any legacy Grafana Agent / opsverse-windows-exporter install is
-removed automatically. Re-running upgrades in place.
+removed automatically. Re-running upgrades in place; a changed `-Hostname`
+propagates to all installed components automatically (the hostname is stored
+once, in `C:\ProgramData\StackGen\ObserveNow\hostname.txt`, and every config
+references it).
 
 After install, verify: `Invoke-WebRequest http://localhost:12345/-/healthy -UseBasicParsing`
 

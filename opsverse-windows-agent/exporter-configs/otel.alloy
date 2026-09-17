@@ -28,8 +28,10 @@ otelcol.receiver.otlp "local" {
 
 otelcol.processor.attributes "local" {
   action {
-    key    = "instance"
-    value  = "__HOSTNAME__"
+    key = "instance"
+    // value accepts any type, so the OptionalSecret exported by local.file
+    // is not auto-coerced to string like it is in label/target attributes.
+    value  = convert.nonsensitive(local.file.hostname.content)
     action = "insert"
   }
 

@@ -17,8 +17,8 @@ prometheus.scrape "jmx" {
   scrape_interval = "30s"
 
   targets = [
-    { __address__ = "127.0.0.1:9404", instance = "__HOSTNAME__", node = "__HOSTNAME__", service = "service-1" },
-    // { __address__ = "127.0.0.1:9405", instance = "__HOSTNAME__", node = "__HOSTNAME__", service = "service-2" },
+    { __address__ = "127.0.0.1:9404", instance = local.file.hostname.content, node = local.file.hostname.content, service = "service-1" },
+    // { __address__ = "127.0.0.1:9405", instance = local.file.hostname.content, node = local.file.hostname.content, service = "service-2" },
   ]
 
   forward_to = [prometheus.remote_write.observenow.receiver]
