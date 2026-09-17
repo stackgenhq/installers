@@ -249,7 +249,7 @@ Set-ScheduledTask -TaskName $schedulerName -Principal $healthCheckTaskPrincipal 
 Start-ScheduledTask -TaskName $schedulerName
 
 if ($healthy) {
-    Write-Output "`nCompleted installation! Verify Windows metrics are coming in on Grafana."
+    Write-Output "`nCompleted installation! Verify Windows metrics are coming in on ObserveNow Grafana."
     Write-Output "To monitor additional components (mssql, nginx, jmx, ...), run install-exporter.ps1"
     Write-Output "Thanks for using StackGen ObserveNow"
 } else {

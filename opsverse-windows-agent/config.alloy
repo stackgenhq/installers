@@ -46,6 +46,10 @@ loki.source.windowsevent "application" {
   eventlog_name          = "Application"
   use_incoming_timestamp = false
 
+  // Seed from the legacy Grafana Agent bookmark on upgraded machines so
+  // event shipping resumes without a gap.
+  legacy_bookmark_path = "C:\\Program Files\\Grafana Agent\\bookmark.xml"
+
   labels = {
     job  = "windows-events",
     host = "__HOSTNAME__",

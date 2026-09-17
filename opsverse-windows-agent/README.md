@@ -83,3 +83,18 @@ Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicPar
 - Troubleshooting: agent UI at `http://localhost:12345`, validate configs with
   `& "C:\Program Files\GrafanaLabs\Alloy\alloy-windows-amd64.exe" validate "C:\ProgramData\StackGen\ObserveNow\conf.d"`.
 - A scheduled task (`agents-health-check`) restarts the service if it stops.
+
+## Validate telemetry
+
+In ObserveNow Grafana Explore (metrics):
+
+```promql
+up{job="integrations/windows-exporter", instance="<hostname>"}
+windows_os_info{instance="<hostname>"}
+```
+
+In ObserveNow Grafana Explore (logs):
+
+```logql
+{job="windows-events", host="<hostname>"}
+```

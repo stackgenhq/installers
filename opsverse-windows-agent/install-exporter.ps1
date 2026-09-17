@@ -290,4 +290,4 @@ if ($backupConf -and (Test-Path $backupConf)) {
 
 Reload-Agent
 
-Write-Output "`n'$Exporter' monitoring enabled. Verify metrics in Grafana."
+Write-Output "`n'$Exporter' monitoring enabled. Verify metrics in ObserveNow Grafana."
