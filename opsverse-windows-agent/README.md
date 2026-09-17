@@ -22,7 +22,7 @@ healthcheck\agents-health-check.ps1     Restarts the service if it stops
 ## Install the agent
 
 ```powershell
-.\installation.ps1 -Hostname "store-001" `
+.\installation.ps1 -Hostname "server-001" `
     -MetricsUrl "metrics.example.com" `
     -LogsUrl "logs.example.com" `
     -Password "<observenow-password>"
@@ -40,7 +40,7 @@ After install, verify: `Invoke-WebRequest http://localhost:12345/-/healthy -UseB
 ```powershell
 .\install-exporter.ps1 -Exporter mssql -ConnectionString "sqlserver://monitor_user:pass@localhost:1433"
 .\install-exporter.ps1 -Exporter nginx
-.\install-exporter.ps1 -Exporter javalogs -LogPath "C:\DataSync\logs\*.log,C:\ServiceA\logs\*.log"
+.\install-exporter.ps1 -Exporter javalogs -LogPath "C:\ServiceA\logs\*.log,C:\ServiceB\logs\*.log"
 .\install-exporter.ps1 -Exporter otel -TracesUrl "https://traces.example.com"
 .\install-exporter.ps1 -Exporter collectors -Collectors "iis,dns"
 .\install-exporter.ps1 -Exporter mssql -Remove

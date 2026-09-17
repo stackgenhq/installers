@@ -6,12 +6,12 @@
 // After editing, reload the agent:
 //   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
 
-prometheus.exporter.mysql "store" {
+prometheus.exporter.mysql "local" {
   data_source_name = "__CONNECTION_STRING__"
 }
 
 discovery.relabel "mysql" {
-  targets = prometheus.exporter.mysql.store.targets
+  targets = prometheus.exporter.mysql.local.targets
 
   rule {
     target_label = "instance"

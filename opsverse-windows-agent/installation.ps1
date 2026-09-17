@@ -24,7 +24,7 @@
     Compatible with Windows PowerShell 5.1+ (Windows Server 2016 and newer).
 
 .EXAMPLE
-    .\installation.ps1 -Hostname "store-001" -MetricsUrl "metrics.example.com" -LogsUrl "logs.example.com" -Password "secret"
+    .\installation.ps1 -Hostname "server-001" -MetricsUrl "metrics.example.com" -LogsUrl "logs.example.com" -Password "secret"
 #>
 
 [CmdletBinding()]

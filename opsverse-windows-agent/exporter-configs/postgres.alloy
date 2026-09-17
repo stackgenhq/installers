@@ -6,12 +6,12 @@
 // After editing, reload the agent:
 //   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
 
-prometheus.exporter.postgres "store" {
+prometheus.exporter.postgres "local" {
   data_source_names = ["__CONNECTION_STRING__"]
 }
 
 discovery.relabel "postgres" {
-  targets = prometheus.exporter.postgres.store.targets
+  targets = prometheus.exporter.postgres.local.targets
 
   rule {
     target_label = "instance"

@@ -1,6 +1,6 @@
 // StackGen ObserveNow - OpenTelemetry traces
-// Receives OTLP from local services (e.g. the Java services / DataSync) and
-// forwards traces to your ObserveNow OTLP endpoint.
+// Receives OTLP from local services and forwards traces to your ObserveNow
+// OTLP endpoint.
 //
 // Point your services at:
 //   OTLP gRPC: 127.0.0.1:4317
@@ -12,7 +12,7 @@
 // After editing, reload the agent:
 //   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
 
-otelcol.receiver.otlp "store" {
+otelcol.receiver.otlp "local" {
   grpc {
     endpoint = "127.0.0.1:4317"
   }
@@ -22,11 +22,11 @@ otelcol.receiver.otlp "store" {
   }
 
   output {
-    traces = [otelcol.processor.attributes.store.input]
+    traces = [otelcol.processor.attributes.local.input]
   }
 }
 
-otelcol.processor.attributes "store" {
+otelcol.processor.attributes "local" {
   action {
     key    = "instance"
     value  = "__HOSTNAME__"
@@ -34,11 +34,11 @@ otelcol.processor.attributes "store" {
   }
 
   output {
-    traces = [otelcol.processor.batch.store.input]
+    traces = [otelcol.processor.batch.local.input]
   }
 }
 
-otelcol.processor.batch "store" {
+otelcol.processor.batch "local" {
   output {
     traces = [otelcol.exporter.otlphttp.observenow.input]
   }

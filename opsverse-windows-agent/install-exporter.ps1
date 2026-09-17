@@ -33,7 +33,7 @@
     .\install-exporter.ps1 -Exporter mssql -ConnectionString "sqlserver://monitor_user:pass@localhost/SQLEXPRESS"
 
 .EXAMPLE
-    .\install-exporter.ps1 -Exporter javalogs -LogPath "C:\DataSync\logs\*.log,C:\ServiceA\logs\*.log"
+    .\install-exporter.ps1 -Exporter javalogs -LogPath "C:\ServiceA\logs\*.log,C:\ServiceB\logs\*.log"
 
 .EXAMPLE
     .\install-exporter.ps1 -Exporter nginx
@@ -56,7 +56,7 @@ param(
     [string]$ConnectionString = "",
 
     # Log file glob(s) for javalogs, comma-separated for multiple services,
-    # e.g. "C:\DataSync\logs\*.log,C:\ServiceA\logs\*.log"
+    # e.g. "C:\ServiceA\logs\*.log,C:\ServiceB\logs\*.log"
     [string]$LogPath = "",
 
     # ObserveNow OTLP endpoint for otel, e.g. https://traces.example.com

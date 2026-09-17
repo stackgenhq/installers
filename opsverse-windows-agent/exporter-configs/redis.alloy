@@ -6,12 +6,12 @@
 // After editing, reload the agent:
 //   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
 
-prometheus.exporter.redis "store" {
+prometheus.exporter.redis "local" {
   redis_addr = "__CONNECTION_STRING__"
 }
 
 discovery.relabel "redis" {
-  targets = prometheus.exporter.redis.store.targets
+  targets = prometheus.exporter.redis.local.targets
 
   rule {
     target_label = "instance"
