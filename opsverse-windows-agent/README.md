@@ -40,7 +40,7 @@ After install, verify: `Invoke-WebRequest http://localhost:12345/-/healthy -UseB
 ```powershell
 .\install-exporter.ps1 -Exporter mssql -ConnectionString "sqlserver://monitor_user:pass@localhost:1433"
 .\install-exporter.ps1 -Exporter nginx
-.\install-exporter.ps1 -Exporter javalogs -LogPath "C:\StackGen\logs\*.log"
+.\install-exporter.ps1 -Exporter javalogs -LogPath "C:\DataSync\logs\*.log,C:\ServiceA\logs\*.log"
 .\install-exporter.ps1 -Exporter otel -TracesUrl "https://traces.example.com"
 .\install-exporter.ps1 -Exporter collectors -Collectors "iis,dns"
 .\install-exporter.ps1 -Exporter mssql -Remove
@@ -56,7 +56,7 @@ After install, verify: `Invoke-WebRequest http://localhost:12345/-/healthy -UseB
 | `blackbox`  | HTTP/TCP endpoint probing (built-in)                                | - (edit targets in the .alloy file) |
 | `nginx`     | nginx metrics; downloads nginx-prometheus-exporter, runs as scheduled task | - (requires stub_status in nginx) |
 | `jmx`       | JVM metrics; downloads the Prometheus JMX javaagent jar             | - (attach jar to Java services, instructions printed) |
-| `javalogs`  | Tails Java service log files to Loki (files older than 48h skipped) | `-LogPath` |
+| `javalogs`  | Tails Java service log files to Loki (files older than 48h skipped) | `-LogPath` (comma-separated for multiple paths) |
 | `otel`      | OTLP trace receiver on 127.0.0.1:4317 (gRPC) / 4318 (HTTP)          | `-TracesUrl` |
 | `sysevents` | Ships the Windows "System" event log channel                        | - |
 | `collectors`| Extra windows_exporter collectors on top of the base set            | `-Collectors "iis,dns"` |

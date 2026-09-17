@@ -33,7 +33,7 @@
     .\install-exporter.ps1 -Exporter mssql -ConnectionString "sqlserver://monitor_user:pass@localhost/SQLEXPRESS"
 
 .EXAMPLE
-    .\install-exporter.ps1 -Exporter javalogs -LogPath "C:\StackGen\logs\*.log"
+    .\install-exporter.ps1 -Exporter javalogs -LogPath "C:\DataSync\logs\*.log,C:\ServiceA\logs\*.log"
 
 .EXAMPLE
     .\install-exporter.ps1 -Exporter nginx
@@ -55,7 +55,8 @@ param(
     # localhost default is written that you can edit later in the .alloy file.
     [string]$ConnectionString = "",
 
-    # Log file glob for javalogs, e.g. C:\StackGen\logs\*.log
+    # Log file glob(s) for javalogs, comma-separated for multiple services,
+    # e.g. "C:\DataSync\logs\*.log,C:\ServiceA\logs\*.log"
     [string]$LogPath = "",
 
     # ObserveNow OTLP endpoint for otel, e.g. https://traces.example.com
@@ -162,7 +163,11 @@ if ($connectionDefaults.ContainsKey($Exporter)) {
 }
 
 if ($Exporter -eq "javalogs") {
-    $template = $template.Replace("__LOG_PATH__", $LogPath.Replace("\", "\\"))
+    $logPaths = @($LogPath -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $pathTargets = ($logPaths | ForEach-Object {
+        "    { __path__ = `"$($_.Replace('\', '\\'))`", job = `"java-services`", host = `"$hostname`" },"
+    }) -join "`n"
+    $template = $template.Replace("__PATH_TARGETS__", $pathTargets)
 }
 
 if ($Exporter -eq "otel") {
