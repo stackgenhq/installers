@@ -1,0 +1,39 @@
+// StackGen ObserveNow - Blackbox probing
+// Uses the agent's built-in Blackbox exporter to probe endpoint availability
+// (e.g. cloud endpoints, nginx routes, upstream APIs).
+//
+// Add one target block per endpoint to probe.
+//
+// After editing, reload the agent:
+//   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
+
+prometheus.exporter.blackbox "local" {
+  config = "{ modules: { http_2xx: { prober: http, timeout: 5s, http: { preferred_ip_protocol: ip4 } } } }"
+
+  target {
+    name    = "local-nginx"
+    address = "http://localhost:80"
+    module  = "http_2xx"
+  }
+}
+
+discovery.relabel "blackbox" {
+  targets = prometheus.exporter.blackbox.local.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = local.file.hostname.content
+  }
+
+  rule {
+    target_label = "node"
+    replacement  = local.file.hostname.content
+  }
+}
+
+prometheus.scrape "blackbox" {
+  job_name        = "integrations/blackbox-exporter"
+  scrape_interval = "30s"
+  targets         = discovery.relabel.blackbox.output
+  forward_to      = [prometheus.remote_write.observenow.receiver]
+}

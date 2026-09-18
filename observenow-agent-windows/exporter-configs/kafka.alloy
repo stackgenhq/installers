@@ -1,0 +1,33 @@
+// StackGen ObserveNow - Kafka monitoring
+// Uses the agent's built-in Kafka exporter.
+//
+// Add one URI per broker to kafka_uris, e.g.
+//   kafka_uris = ["broker1:9092", "broker2:9092"]
+//
+// After editing, reload the agent:
+//   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
+
+prometheus.exporter.kafka "local" {
+  kafka_uris = ["__CONNECTION_STRING__"]
+}
+
+discovery.relabel "kafka" {
+  targets = prometheus.exporter.kafka.local.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = local.file.hostname.content
+  }
+
+  rule {
+    target_label = "node"
+    replacement  = local.file.hostname.content
+  }
+}
+
+prometheus.scrape "kafka" {
+  job_name        = "integrations/kafka-exporter"
+  scrape_interval = "30s"
+  targets         = discovery.relabel.kafka.output
+  forward_to      = [prometheus.remote_write.observenow.receiver]
+}

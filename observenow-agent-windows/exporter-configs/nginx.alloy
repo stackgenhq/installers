@@ -1,0 +1,23 @@
+// StackGen ObserveNow - nginx monitoring
+// Scrapes the nginx-prometheus-exporter installed by install-exporter.ps1
+// (runs as scheduled task "prom-nginx-exporter", listening on 127.0.0.1:9113).
+//
+// The exporter reads nginx's stub_status endpoint, which must be enabled in
+// your nginx config:
+//   location = /stub_status { stub_status; }
+//
+// After editing, reload the agent:
+//   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
+
+prometheus.scrape "nginx" {
+  job_name        = "integrations/nginx-prometheus-exporter"
+  scrape_interval = "30s"
+
+  targets = [{
+    __address__ = "127.0.0.1:9113",
+    instance    = local.file.hostname.content,
+    node        = local.file.hostname.content,
+  }]
+
+  forward_to = [prometheus.remote_write.observenow.receiver]
+}

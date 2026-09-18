@@ -1,0 +1,25 @@
+// StackGen ObserveNow - JVM (JMX) monitoring
+// Scrapes the Prometheus JMX javaagent attached to your Java services.
+//
+// install-exporter.ps1 places the javaagent jar at:
+//   C:\Program Files\StackGen\ObserveNow\exporters\jmx\jmx_prometheus_javaagent.jar
+//
+// Attach it to each Java service (one port per service), e.g.:
+//   java -javaagent:"C:\Program Files\StackGen\ObserveNow\exporters\jmx\jmx_prometheus_javaagent.jar"=9404:"C:\Program Files\StackGen\ObserveNow\exporters\jmx\config.yaml" -jar service.jar
+//
+// Then add one target below per service (9404, 9405, ...).
+//
+// After editing, reload the agent:
+//   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
+
+prometheus.scrape "jmx" {
+  job_name        = "integrations/jmx-exporter"
+  scrape_interval = "30s"
+
+  targets = [
+    { __address__ = "127.0.0.1:9404", instance = local.file.hostname.content, node = local.file.hostname.content, service = "service-1" },
+    // { __address__ = "127.0.0.1:9405", instance = local.file.hostname.content, node = local.file.hostname.content, service = "service-2" },
+  ]
+
+  forward_to = [prometheus.remote_write.observenow.receiver]
+}

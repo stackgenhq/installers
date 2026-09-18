@@ -1,0 +1,18 @@
+// StackGen ObserveNow - System event channel logs
+// Forwards the Windows "System" event log channel to Loki, alongside the
+// "Application" channel shipped by the base config.
+//
+// After editing, reload the agent:
+//   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
+
+loki.source.windowsevent "system" {
+  eventlog_name          = "System"
+  use_incoming_timestamp = false
+
+  labels = {
+    job  = "windows-events",
+    host = local.file.hostname.content,
+  }
+
+  forward_to = [loki.write.observenow.receiver]
+}

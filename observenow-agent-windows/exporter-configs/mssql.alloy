@@ -1,0 +1,35 @@
+// StackGen ObserveNow - MsSQL monitoring
+// Uses the agent's built-in MsSQL exporter; works across SQL Server editions
+// and versions (Express, Standard, 2016+).
+//
+// Connection string examples:
+//   sqlserver://monitor_user:password@localhost:1433          (default instance)
+//   sqlserver://monitor_user:password@localhost/SQLEXPRESS    (named instance)
+//
+// After editing, reload the agent:
+//   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
+
+prometheus.exporter.mssql "local" {
+  connection_string = "__CONNECTION_STRING__"
+}
+
+discovery.relabel "mssql" {
+  targets = prometheus.exporter.mssql.local.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = local.file.hostname.content
+  }
+
+  rule {
+    target_label = "node"
+    replacement  = local.file.hostname.content
+  }
+}
+
+prometheus.scrape "mssql" {
+  job_name        = "integrations/mssql"
+  scrape_interval = "30s"
+  targets         = discovery.relabel.mssql.output
+  forward_to      = [prometheus.remote_write.observenow.receiver]
+}

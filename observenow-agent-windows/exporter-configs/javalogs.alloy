@@ -1,0 +1,23 @@
+// StackGen ObserveNow - Java service log file collection
+// Tails log files matching the glob(s) below and ships them to ObserveNow.
+//
+// Pass multiple globs to install-exporter.ps1 comma-separated, e.g.:
+//   .\install-exporter.ps1 -Exporter javalogs -LogPath "C:\ServiceA\logs\*.log,C:\ServiceB\logs\*.log"
+//
+// After editing, reload the agent:
+//   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
+
+local.file_match "java_services" {
+  path_targets = [
+__PATH_TARGETS__
+  ]
+
+  // Skip rotated logs older than 48h so a directory full of old files does
+  // not drive up CPU (see grafana/alloy#6209).
+  ignore_older_than = "48h"
+}
+
+loki.source.file "java_services" {
+  targets    = local.file_match.java_services.targets
+  forward_to = [loki.write.observenow.receiver]
+}

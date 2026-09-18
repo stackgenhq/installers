@@ -1,0 +1,32 @@
+// StackGen ObserveNow - MySQL monitoring
+// Uses the agent's built-in MySQL exporter.
+//
+// DSN format: user:password@(host:port)/
+//
+// After editing, reload the agent:
+//   Invoke-WebRequest -Method POST -Uri http://localhost:12345/-/reload -UseBasicParsing
+
+prometheus.exporter.mysql "local" {
+  data_source_name = "__CONNECTION_STRING__"
+}
+
+discovery.relabel "mysql" {
+  targets = prometheus.exporter.mysql.local.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = local.file.hostname.content
+  }
+
+  rule {
+    target_label = "node"
+    replacement  = local.file.hostname.content
+  }
+}
+
+prometheus.scrape "mysql" {
+  job_name        = "integrations/mysqld-exporter"
+  scrape_interval = "30s"
+  targets         = discovery.relabel.mysql.output
+  forward_to      = [prometheus.remote_write.observenow.receiver]
+}
