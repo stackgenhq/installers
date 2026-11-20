@@ -52,6 +52,18 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --obi-metrics)
+      OBI_METRICS=true
+      shift
+      ;;
+    --obi-traces-endpoint)
+      OBI_TRACES_ENDPOINT="$2"
+      shift 2
+      ;;
+    --obi-exclude-exe)
+      OBI_EXCLUDE_EXE="$2"
+      shift 2
+      ;;
     -h|--help)
       HELP=true
       shift # past argument
@@ -63,7 +75,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Show help, if necessary, and exit
-if [ "$HELP" = true ] || [ "$EXPORTER" != "mysqld" -a "$EXPORTER" != "mongodb" -a "$EXPORTER" != "redis" -a "$EXPORTER" != "jmx" -a "$EXPORTER" != "nginx" -a "$EXPORTER" != "cadvisor" -a "$EXPORTER" != "vmware" -a "$EXPORTER" != "opsverse-otelcontribcol" -a "$EXPORTER" != "postgres" -a "$EXPORTER" != "rds" -a "$EXPORTER" != "blackbox" -a "$EXPORTER" != "snmp" -a "$EXPORTER" != "kafka" ]; then
+if [ "$HELP" = true ] || [ "$EXPORTER" != "mysqld" -a "$EXPORTER" != "mongodb" -a "$EXPORTER" != "redis" -a "$EXPORTER" != "jmx" -a "$EXPORTER" != "nginx" -a "$EXPORTER" != "cadvisor" -a "$EXPORTER" != "vmware" -a "$EXPORTER" != "opsverse-otelcontribcol" -a "$EXPORTER" != "postgres" -a "$EXPORTER" != "rds" -a "$EXPORTER" != "blackbox" -a "$EXPORTER" != "snmp" -a "$EXPORTER" != "kafka" -a "$EXPORTER" != "obi" ]; then
   echo "Installs a prometheus exporter on your machine"
   echo ""
   echo "Usage: sudo ./install-exporter.sh -e <exporter>" 
@@ -85,6 +97,12 @@ if [ "$HELP" = true ] || [ "$EXPORTER" != "mysqld" -a "$EXPORTER" != "mongodb" -
   echo "  - blackbox"
   echo "  - snmp"
   echo "  - kafka"
+  echo "  - obi (OpenTelemetry eBPF Instrumentation; install opsverse-otelcontribcol first)"
+  echo ""
+  echo "OBI options:"
+  echo "  --obi-metrics                  Also expose RED metrics on :9090 for the agent to scrape"
+  echo "  --obi-traces-endpoint          OTLP gRPC endpoint for traces (default: http://localhost:4317)"
+  echo "  --obi-exclude-exe              Regex on executable paths OBI should not instrument"
   echo ""
   echo "Example:"
   echo "  sudo ./install-exporter.sh -e mysqld"
@@ -278,9 +296,125 @@ function download_exporter () {
     # cleanup what was downloaded
     rm -rf ${EXPORTER_BASE_NAME}*
   fi
+
+  if [ "$EXPORTER" == "obi" ]; then
+    EXPORTER_VERSION="1.0.0"
+    EXPORTER_BASE_NAME="obi-v${EXPORTER_VERSION}-linux-arm64"
+    EXPORTER_DL_URL="https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/releases/download/v${EXPORTER_VERSION}/${EXPORTER_BASE_NAME}.tar.gz"
+
+    wget ${EXPORTER_DL_URL}
+    mkdir -p ${EXPORTER_BASE_NAME}
+    tar -xzf ${EXPORTER_BASE_NAME}.tar.gz -C ${EXPORTER_BASE_NAME} obi
+    cp ${EXPORTER_BASE_NAME}/obi /usr/local/bin/obi
+    chmod +x /usr/local/bin/obi
+
+    rm -rf ${EXPORTER_BASE_NAME}*
+  fi
 }
 
 function set_exporter_custom_confs () {
+
+  if [ "$EXPORTER" == "obi" ]; then
+    OBI_TRACES_ENDPOINT=${OBI_TRACES_ENDPOINT:-http://localhost:4317}
+
+    OBI_SELF_EXE_REGEX='(^|/)(obi|[^/]*otelcol[^/]*|opsverse-otelcontribcol|opsverse-telemetry-agent|[a-z]+_exporter|nginx-prometheus-exporter|cadvisor)$'
+    OBI_SYSTEM_EXE_REGEX='(^|/)(systemd[^/]*|sshd|containerd[^/]*|dockerd|snapd|chronyd|rsyslogd)$'
+
+    cat << EOF > /etc/opsverse/exporters/obi/obi-config.yml
+file_format: "1.0"
+log_level: info
+resource: {}
+propagator: {}
+extensions:
+  obi:
+    version: "2.0"
+    capture:
+      policy:
+        default_action: exclude
+        match_order: first_match_wins
+      rules:
+        - name: exclude-obi-and-collectors
+          action: exclude
+          match:
+            process:
+              exe_path_regex: '${OBI_SELF_EXE_REGEX}'
+        - name: exclude-system-processes
+          action: exclude
+          match:
+            process:
+              exe_path_regex: '${OBI_SYSTEM_EXE_REGEX}'
+EOF
+
+    if [ -n "$OBI_EXCLUDE_EXE" ]; then
+      cat << EOF >> /etc/opsverse/exporters/obi/obi-config.yml
+        - name: exclude-user
+          action: exclude
+          match:
+            process:
+              exe_path_regex: '${OBI_EXCLUDE_EXE}'
+EOF
+    fi
+
+    cat << EOF >> /etc/opsverse/exporters/obi/obi-config.yml
+        - name: exclude-otlp-exporters
+          action: exclude
+          match:
+            process:
+              exports_otlp:
+                port: 4317
+                protocol: protobuf
+        - name: include-all-processes
+          action: include
+          match:
+            process:
+              exe_path_regex: '.+'
+      instrumentation:
+        dns:
+          enabled:
+            traces: false
+            metrics: false
+      network:
+        capture:
+          enabled: false
+EOF
+
+    if [ "$OBI_METRICS" == "true" ]; then
+      cat << EOF >> /etc/opsverse/exporters/obi/obi-config.yml
+      metrics:
+        features:
+          - application_red
+EOF
+    fi
+
+    cat << EOF >> /etc/opsverse/exporters/obi/obi-config.yml
+    enrich:
+      enrichers:
+        kubernetes:
+          mode: disabled
+tracer_provider:
+  processors:
+    - batch:
+        max_queue_size: 16384
+        max_export_batch_size: 4096
+        schedule_delay: 15000
+        exporter:
+          otlp_grpc:
+            endpoint: ${OBI_TRACES_ENDPOINT}
+            tls:
+              insecure: true
+EOF
+
+    if [ "$OBI_METRICS" == "true" ]; then
+      cat << EOF >> /etc/opsverse/exporters/obi/obi-config.yml
+meter_provider:
+  readers:
+    - pull:
+        exporter:
+          prometheus/development:
+            port: 9090
+EOF
+    fi
+  fi
 
   if [ "$EXPORTER" == "mysqld" ]; then
     cat << EOF > /etc/opsverse/exporters/mysqld/.my.cnf
@@ -621,6 +755,24 @@ WantedBy=multi-user.target
 EOF
   fi
 
+  if [ "$EXPORTER" == "obi" ]; then
+    cat << EOF > $EXPORTER_SERVICE_FILE
+[Unit]
+Description=OpenTelemetry eBPF Instrumentation (OBI)
+
+[Service]
+User=root
+Environment=OTEL_EBPF_CONFIG_PATH=/etc/opsverse/exporters/obi/obi-config.yml
+ExecStart=/usr/local/bin/obi
+Restart=always
+LimitMEMLOCK=infinity
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  fi
+
   if [ "$EXPORTER" == "vmware" ]; then
     cat << EOF > $EXPORTER_SERVICE_FILE
 [Unit]
@@ -727,7 +879,7 @@ EOF
 # returns true (0) if exporter needs a sysv init script
 function exporter_needs_sysv () {
 
-  if [ "$1" == "redis" ] || [ "$1" == "mysqld" ] || [ "$1" == "mongodb" ] || [ "$1" == 'nginx' ] || [ "$1" == "cadvisor" ] || [ "$1" == "vmware" ] || [ "$1" == "opsverse-otelcontribcol" ] || [ "$1" == "postgres" ] || [ "$1" == "rds" ] || [ "$1" == "blackbox" ] || [ "$1" == "snmp" ] || [ "$1" == "kafka" ] ; then
+  if [ "$1" == "redis" ] || [ "$1" == "mysqld" ] || [ "$1" == "mongodb" ] || [ "$1" == 'nginx' ] || [ "$1" == "cadvisor" ] || [ "$1" == "vmware" ] || [ "$1" == "opsverse-otelcontribcol" ] || [ "$1" == "postgres" ] || [ "$1" == "rds" ] || [ "$1" == "blackbox" ] || [ "$1" == "snmp" ] || [ "$1" == "kafka" ] || [ "$1" == "obi" ] ; then
     return 0
   fi
 
@@ -818,6 +970,12 @@ function set_exporter_sysv () {
       EXPORTER_CONFIG="/etc/opsverse/exporters/kafka/kafka-brokers.conf"
       EXPORTER_COMMAND="/etc/opsverse/exporters/kafka/opsverse-kafka-exporter-start.sh"
       EXPORTER_KILLPROC="kafka_exporter"
+    fi
+
+    if [ "$EXPORTER" == "obi" ]; then
+      EXPORTER_CONFIG="/etc/opsverse/exporters/obi/obi-config.yml"
+      EXPORTER_COMMAND="env OTEL_EBPF_CONFIG_PATH=/etc/opsverse/exporters/obi/obi-config.yml /usr/local/bin/obi"
+      EXPORTER_KILLPROC="obi"
     fi
 
     cat << EOF > $EXPORTER_SYSV_SCRIPT
@@ -1080,9 +1238,44 @@ EOF
 EOF
   fi
 
+  if [ "$EXPORTER" == "obi" ]; then
+    if [ "$OBI_METRICS" == "true" ]; then
+      cat << EOF > /etc/opsverse/targets/${EXPORTER}-exporter.json
+[
+  {
+    "labels": {
+      "job": "integrations/obi"
+    },
+    "targets": [
+      "localhost:9090"
+    ]
+  }
+]
+EOF
+    else
+      rm -f /etc/opsverse/targets/${EXPORTER}-exporter.json
+    fi
+  fi
+
+}
+
+function obi_preflight () {
+  if [ ! -f /sys/kernel/btf/vmlinux ]; then
+    echo "OBI needs a kernel with BTF (/sys/kernel/btf/vmlinux): Linux >= 5.8, or RHEL/CentOS 8.2+. Exiting."
+    exit 1
+  fi
+
+  if [ -z "$OBI_TRACES_ENDPOINT" ] && [ ! -x /usr/local/bin/opsverse-otelcontribcol ]; then
+    echo "WARNING: opsverse-otelcontribcol isn't installed. OBI will send traces to http://localhost:4317,"
+    echo "so make sure an OTel collector is listening there, or re-run with --obi-traces-endpoint."
+  fi
 }
 
 function exporter_setup () {
+  if [ "$EXPORTER" == "obi" ]; then
+    obi_preflight
+  fi
+
   download_exporter
   set_exporter_custom_confs
 
